@@ -50,6 +50,6 @@ echo "✅ Plugin installed successfully (Closed Source)!"
 
 # 6. Restart Enigma2
 echo ""
-echo "🔄 Restarting Enigma2..."
-sleep 2
-killall -9 enigma2
+echo "🔄 Restarting Enigma2 in background..."
+( sleep 3; killall -9 enigma2 ) &
+exit 0
