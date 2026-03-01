@@ -22,9 +22,9 @@ mkdir -p "$PLUGIN_DIR"
 
 # 2. Download the protected plugin base64 code and icon
 echo "📥 Downloading plugin..."
-wget -q "$GITHUB_RAW/plugin_b64.txt" -O "$PLUGIN_DIR/plugin_b64.txt"
-wget -q "$GITHUB_RAW/__init__.py" -O "$PLUGIN_DIR/__init__.py"
-wget -q "$GITHUB_RAW/plugin.png" -O "$PLUGIN_DIR/plugin.png"
+wget -q "$GITHUB_RAW/plugin_b64.txt?t=\$(date +%s)" -O "$PLUGIN_DIR/plugin_b64.txt"
+wget -q "$GITHUB_RAW/__init__.py?t=\$(date +%s)" -O "$PLUGIN_DIR/__init__.py"
+wget -q "$GITHUB_RAW/plugin.png?t=\$(date +%s)" -O "$PLUGIN_DIR/plugin.png"
 
 if [ $? -ne 0 ]; then
     echo "❌ Download failed! Check your internet connection or GitHub repo."
