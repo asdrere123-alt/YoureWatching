@@ -15,7 +15,9 @@ echo "By Ahmed Ibrahim"
 echo "======================================"
 echo ""
 
-# 1. Create plugin folder
+# 1. Clean old version and create fresh plugin folder
+echo "🗑️  Removing old version (if any)..."
+rm -rf "$PLUGIN_DIR"
 mkdir -p "$PLUGIN_DIR"
 
 # 2. Download the protected plugin base64 code and icon
