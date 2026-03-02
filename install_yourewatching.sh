@@ -22,36 +22,54 @@ mkdir -p "$PLUGIN_DIR"
 
 # 2. Download the protected plugin base64 code and icon
 echo "📥 Downloading plugin..."
-wget -q "$GITHUB_RAW/plugin_b64.txt?t=\$(date +%s)" -O "$PLUGIN_DIR/plugin_b64.txt"
-wget -q "$GITHUB_RAW/__init__.py?t=\$(date +%s)" -O "$PLUGIN_DIR/__init__.py"
-wget -q "$GITHUB_RAW/plugin.png?t=\$(date +%s)" -O "$PLUGIN_DIR/plugin.png"
+WGET_OPTS="--no-check-certificate"
+wget -q $WGET_OPTS "$GITHUB_RAW/plugin_b64.txt?t=$(date +%s)" -O "$PLUGIN_DIR/plugin_b64.txt"
+wget -q $WGET_OPTS "$GITHUB_RAW/__init__.py?t=$(date +%s)" -O "$PLUGIN_DIR/__init__.py"
+wget -q $WGET_OPTS "$GITHUB_RAW/plugin.png?t=$(date +%s)" -O "$PLUGIN_DIR/plugin.png"
 
 if [ $? -ne 0 ]; then
-    echo "❌ Download failed! Check your internet connection or GitHub repo."
+    echo "❌ Download failed! (SSL error or No Internet)"
     exit 1
+fi
+
+# Determine Python command
+PYTHON_CMD="python"
+if ! command -v python >/dev/null 2>&1; then
+    PYTHON_CMD="python3"
 fi
 
 # 3. Decode the plugin code locally
 echo "⚙️  Decoding & Compiling..."
-base64 -d "$PLUGIN_DIR/plugin_b64.txt" > "$PLUGIN_DIR/plugin.py" 2>/dev/null
-
-# If base64 fails (missing on some old boxes), try using python built-in library
-if [ ! -f "$PLUGIN_DIR/plugin.py" ] || [ ! -s "$PLUGIN_DIR/plugin.py" ]; then
-    python -c "import base64; open('$PLUGIN_DIR/plugin.py', 'wb').write(base64.b64decode(open('$PLUGIN_DIR/plugin_b64.txt').read()))"
+if command -v base64 >/dev/null 2>&1; then
+    base64 -d "$PLUGIN_DIR/plugin_b64.txt" > "$PLUGIN_DIR/plugin.py" 2>/dev/null
 fi
 
-# 4. Compile it natively on the receiver to match its Python version (works for Py2 & Py3!)
-python -m py_compile "$PLUGIN_DIR/plugin.py" "$PLUGIN_DIR/__init__.py" 2>/dev/null
-python -O -m py_compile "$PLUGIN_DIR/plugin.py" "$PLUGIN_DIR/__init__.py" 2>/dev/null
+# If base64 fails or is missing, use python fallback
+if [ ! -f "$PLUGIN_DIR/plugin.py" ] || [ ! -s "$PLUGIN_DIR/plugin.py" ]; then
+    $PYTHON_CMD -c "import base64; open('$PLUGIN_DIR/plugin.py', 'wb').write(base64.b64decode(open('$PLUGIN_DIR/plugin_b64.txt').read()))"
+fi
 
-# 5. Lock it down (delete the readable script files)
-rm -f "$PLUGIN_DIR/plugin.py"
-rm -f "$PLUGIN_DIR/plugin_b64.txt"
+# 4. Compile it natively on the receiver
+$PYTHON_CMD -m py_compile "$PLUGIN_DIR/plugin.py" "$PLUGIN_DIR/__init__.py" >/dev/null 2>&1
+$PYTHON_CMD -O -m py_compile "$PLUGIN_DIR/plugin.py" "$PLUGIN_DIR/__init__.py" >/dev/null 2>&1
 
-echo "✅ Plugin installed successfully (Closed Source)!"
+# 5. Lock it down
+if [ -f "$PLUGIN_DIR/plugin.pyc" ] || [ -f "$PLUGIN_DIR/__pycache__/plugin.cpython-312.pyc" ] || [ -f "$PLUGIN_DIR/__pycache__/plugin.cpython-311.pyc" ] || [ -f "$PLUGIN_DIR/__pycache__/plugin.cpython-310.pyc" ] || [ -d "$PLUGIN_DIR/__pycache__" ]; then
+    rm -f "$PLUGIN_DIR/plugin.py"
+    rm -f "$PLUGIN_DIR/plugin_b64.txt"
+    echo "✅ Plugin installed and compiled successfully!"
+else
+    # If compilation failed, keep the .py so the plugin at least tries to run (OpenPLi fallback)
+    echo "⚠️  Compilation warning, but installation continued."
+    rm -f "$PLUGIN_DIR/plugin_b64.txt"
+fi
 
 # 6. Restart Enigma2
 echo ""
-echo "🔄 Restarting Enigma2 in background..."
-( sleep 3; killall -9 enigma2 ) &
+echo "🔄 Restarting Enigma2..."
+if [ -f /etc/init.d/enigma2 ]; then
+    ( sleep 2; /etc/init.d/enigma2 restart ) &
+else
+    ( sleep 2; killall -9 enigma2 ) &
+fi
 exit 0
